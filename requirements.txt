@@ -1,0 +1,7 @@
+Flask==1.0.2
+Werkzeug<0.13.0,>=0.12.0
+google-cloud-datastore==1.7.0
+google-assistant-grpc==0.1.0
+google-assistant-sdk==0.4.4
+google-auth-oauthlib>=0.1.0,<0.3
+google-cloud-firestore==0.31.0
