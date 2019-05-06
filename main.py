@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 # Base imports
 import json
 import logging
 import urllib.request, urllib.parse, urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
 import sys
 import requests
 import random
@@ -45,6 +46,7 @@ def set_webhook():
         return json.dumps(json.load(urllib.request.urlopen(
             BASE_URL + 'setWebhook', urllib.parse.urlencode({'url': url}).encode("utf-8"))))
 
+
 # Returns the sent message as JSON
 def send(msg, chat_id, reply=None, keyboard=json.dumps({'inline_keyboard': [[]]})):
     try:
@@ -61,6 +63,7 @@ def send(msg, chat_id, reply=None, keyboard=json.dumps({'inline_keyboard': [[]]}
         resp = make_response('Error in send')
     return resp
 
+
 def sendphoto(msg, file_id, chat_id, reply=None, keyboard=json.dumps({'inline_keyboard': [[]]})):
     try:
         resp = urllib.request.urlopen(BASE_URL + 'sendPhoto', urllib.parse.urlencode({
@@ -72,10 +75,11 @@ def sendphoto(msg, file_id, chat_id, reply=None, keyboard=json.dumps({'inline_ke
             'reply_markup': keyboard,
         }).encode("utf-8")).read()
         logging.info(resp)
-    except Exception as e:
+    except Exception:
         resp = make_response('Error in sendphoto')
     finally:
         return resp
+
 
 def editmessage(chat_id, message_id, text):
     try:
@@ -91,6 +95,20 @@ def editmessage(chat_id, message_id, text):
         resp = make_response('Error in edit')
     return resp
 
+
+def deletemessage(chat_id, message_id):
+    try:
+        resp = urllib.request.urlopen(BASE_URL + 'deleteMessage', urllib.parse.urlencode({
+                'chat_id': str(chat_id),
+                'message_id': int(message_id),
+            }).encode("utf-8")).read()
+        logging.info(resp)
+    except Exception:
+        resp = make_response('Error in delete')
+    finally:
+        return resp
+
+
 def answer_callback(query_id):
     try:
         resp = urllib.request.urlopen(BASE_URL + 'answerCallbackQuery', urllib.parse.urlencode({
@@ -101,15 +119,19 @@ def answer_callback(query_id):
     finally:
         return resp
 
+
 def pin(message_id, chat_id, notification=True):
     try:
-        res = urllib.request.urlopen(BASE_URL + 'pinChatMessage', urllib.parse.urlencode({
+        resp = urllib.request.urlopen(BASE_URL + 'pinChatMessage', urllib.parse.urlencode({
             'chat_id': str(chat_id),
             'message_id': int(message_id),
             'disable_notification': not notification, }).encode("utf-8")).read()
-        return res
+
     except Exception:
-        return make_response('Error in pin')
+        resp = make_response('Error in pin')
+    finally:
+        return resp
+
 
 # Messages handling
 @app.route('/webhook', methods=['POST'])
@@ -118,7 +140,7 @@ def webhook_handler():
     logging.info('Request body:')
     logging.info(body)
 
-    if ('callback_query' in body):
+    if 'callback_query' in body:
         #Callback received
         try:
             query_id = body['callback_query'].get('id')
@@ -126,14 +148,20 @@ def webhook_handler():
             user_id = body['callback_query'].get('from').get('id')
             chat_id = body['callback_query'].get('message').get('chat').get('id')
             inline_message_id = body['callback_query'].get('message').get('message_id')
+            if body['callback_query'].get('message').get('reply_to_message') is not None:
+                reply_id = body['callback_query'].get('message').get('reply_to_message').get('message_id')
+                reply_from_id = body['callback_query'].get('message').get('reply_to_message').get('from').get('id')
 
             if data == 'yes':
-                if user_id == body['callback_query'].get('message').get('reply_to_message').get('from').get('id') or user_id == secrets.alessandro_id:
+                if user_id == reply_from_id or user_id == secrets.alessandro_id:
                     photos = body['callback_query'].get('message').get('reply_to_message').get('photo')
                     if photos is not None:
                         photo_id = photos[-1].get('file_id')
                         if photo_id is not None:
-                            reply_markup = {'inline_keyboard': [[{'text': 'Primo 1', 'callback_data': 'primo1'},{'text': '2', 'callback_data': 'primo2'},{'text': '3', 'callback_data': 'primo3'}],[{'text': 'Riso', 'callback_data': 'riso'},{'text': 'Secondo 1', 'callback_data': 'secondo1'},{'text': '2', 'callback_data': 'secondo2'}],[{'text': 'Contorno 1', 'callback_data': 'contorno1'},{'text': '2', 'callback_data': 'contorno2'},{'text': '3', 'callback_data': 'contorno3'},{'text': '4', 'callback_data': 'contorno4'}]]}
+                            reply_markup = {'inline_keyboard': [[{'text': 'Primo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'primo1'}, {'text': '2', 'callback_data': 'primo2'},{'text': '3', 'callback_data': 'primo3'}],
+                                                                [{'text': 'Riso', 'callback_data': 'riso'}],
+                                                                [{'text': 'Secondo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'secondo1'}, {'text': '2', 'callback_data': 'secondo2'}],
+                                                                [{'text': 'Contorno', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'contorno1'},{'text': '2', 'callback_data': 'contorno2'},{'text': '3', 'callback_data': 'contorno3'},{'text': '4', 'callback_data': 'contorno4'}]]}
                             reply_markup = json.dumps(reply_markup)
                             post = sendphoto("Menù pranzo", photo_id, chat_id, keyboard=reply_markup)
                             post_json = post.decode('utf8')
@@ -143,7 +171,10 @@ def webhook_handler():
                             ordinazioni_id = json.loads(ordinazioni_json)['result'].get('message_id')
                             init_database(ordinazioni_id)
                             pin(post_id, chat_id)
-            
+                            deletemessage(chat_id, inline_message_id)
+                            deletemessage (chat_id, reply_id)
+            elif data == 'none':
+                pass
             else:
                 doc_ref = db.collection(u'data').document(u'one')
                 doc = doc_ref.get()
@@ -160,6 +191,7 @@ def webhook_handler():
                     doc_ref.update({data: ArrayRemove([username])})
                 else:
                     doc_ref.update({data: ArrayUnion([username])})
+                doc_ref.update({'seats': ArrayUnion([username])})
 
                 doc = doc_ref.get()
                 order = Order.from_dict(doc.to_dict())
@@ -171,6 +203,7 @@ def webhook_handler():
             logging.info(e)
             return make_response('Error in callback handling')
 
+    # Useful variables
     try:
         message = body['message']
     except Exception:
@@ -191,9 +224,9 @@ def webhook_handler():
             reply_text = message.get('reply_to_message').get('text')
 
     if (not text) or is_forward:
-        #Image received?
+        # Image received?
         timestamp = message.get('date')
-        message_date = datetime.fromtimestamp(timestamp)
+        message_date = datetime.fromtimestamp(timestamp).astimezone(pytz.timezone('Europe/Rome'))
         caption = message.get('caption')
         photos = message.get('photo')
         if 11 <= message_date.hour <= 13:
@@ -214,6 +247,9 @@ def webhook_handler():
         logging.info('no text')
         return json.dumps(body)
 
+    else:
+        uniformed_text = text.lower()
+
     if text.startswith('/conto'):
         return send(secrets.bill_address, chat_id)
 
@@ -223,12 +259,10 @@ def webhook_handler():
 
     return json.dumps(body)
 
-    # Useful variables
-    uniformed_text = text.lower()
 
 # [START custom_class_def]
 class Order(object):
-    def __init__(self, post_id, primo1 = [], primo2 = [], primo3 = [], riso = [], secondo1 = [], secondo2 = [], contorno1 = [], contorno2 = [], contorno3 = [], contorno4 = []):
+    def __init__(self, post_id, seats = [], primo1 = [], primo2 = [], primo3 = [], riso = [], secondo1 = [], secondo2 = [], contorno1 = [], contorno2 = [], contorno3 = [], contorno4 = []):
         self.primo1 = primo1
         self.primo2 = primo2
         self.primo3 = primo3
@@ -240,11 +274,12 @@ class Order(object):
         self.contorno3 = contorno3
         self.contorno4 = contorno4
         self.post_id = post_id
+        self.seats = seats
 
     @staticmethod
     def from_dict(source):
         # [START_EXCLUDE]
-        order = Order(source[u'post_id'], source[u'primo1'], source[u'primo2'], source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'], source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
+        order = Order(source[u'post_id'], source[u'seats'], source[u'primo1'], source[u'primo2'], source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'], source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
 
         return order
         # [END_EXCLUDE]
@@ -263,6 +298,7 @@ class Order(object):
             u'contorno3': self.contorno3,
             u'contorno4': self.contorno4,
             u'post_id': self.post_id,
+            u'seats': self.seats,
         }
 
         return dest
@@ -270,12 +306,13 @@ class Order(object):
 
     def __repr__(self):
         return(
-            'Ordine:\n Primo 1: ({}) {}\n Primo 2: ({}) {}\n Primo 3: ({}) {}\n Riso: ({}) {}\n Secondo 1: ({}) {}\n Secondo 2: ({}) {}\n Contorno 1: ({}) {}\n Contorno 2: ({}) {}\n Contorno 3: ({}) {}\n Contorno 4: ({}) {}'
+            'Ordine:\n Primo 1: ({}) {}\n Primo 2: ({}) {}\n Primo 3: ({}) {}\n Riso: ({}) {}\n Secondo 1: ({}) {}\n Secondo 2: ({}) {}\n Contorno 1: ({}) {}\n Contorno 2: ({}) {}\n Contorno 3: ({}) {}\n Contorno 4: ({}) {}\n Persone a pranzo: {} ({})'
             .format(len(self.primo1), self.primo1, len(self.primo2), self.primo2, len(self.primo3), self.primo3, len(self.riso), self.riso, 
-                    len(self.secondo1), self.secondo1, len(self.secondo2), self.secondo2, len(self.contorno1), self.contorno1, len(self.contorno2), self.contorno2, len(self.contorno3), self.contorno3, len(self.contorno4), self.contorno4)
+                    len(self.secondo1), self.secondo1, len(self.secondo2), self.secondo2, len(self.contorno1), self.contorno1, len(self.contorno2), self.contorno2, len(self.contorno3), self.contorno3, len(self.contorno4), self.contorno4, len(self.seats), self.seats)
             .replace("'", ""))
 
 # [END custom_class_def]
+
 
 def init_database(post_id):
     db.collection(u'data').document(u'one').set(Order(post_id).to_dict())
