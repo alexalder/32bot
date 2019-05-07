@@ -306,7 +306,7 @@ class Order(object):
 
     def __repr__(self):
         return(
-            'Ordine:\n Primo 1: ({}) {}\n Primo 2: ({}) {}\n Primo 3: ({}) {}\n Riso: ({}) {}\n Secondo 1: ({}) {}\n Secondo 2: ({}) {}\n Contorno 1: ({}) {}\n Contorno 2: ({}) {}\n Contorno 3: ({}) {}\n Contorno 4: ({}) {}\n Persone a pranzo: {} ({})'
+            'Ordine:\n Primo 1: ({}) {}\n Primo 2: ({}) {}\n Primo 3: ({}) {}\n Riso: ({}) {}\n Secondo 1: ({}) {}\n Secondo 2: ({}) {}\n Contorno 1: ({}) {}\n Contorno 2: ({}) {}\n Contorno 3: ({}) {}\n Contorno 4: ({}) {}\n Persone a pranzo: {} {}'
             .format(len(self.primo1), self.primo1, len(self.primo2), self.primo2, len(self.primo3), self.primo3, len(self.riso), self.riso, 
                     len(self.secondo1), self.secondo1, len(self.secondo2), self.secondo2, len(self.contorno1), self.contorno1, len(self.contorno2), self.contorno2, len(self.contorno3), self.contorno3, len(self.contorno4), self.contorno4, len(self.seats), self.seats)
             .replace("'", ""))
