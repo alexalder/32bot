@@ -186,7 +186,7 @@ def webhook_handler():
                 order = Order.from_dict(doc.to_dict())
 
                 if data == 'ordered':
-                    doc_ref.update({'ordered': true})
+                    doc_ref.update({'ordered': True})
 
                 else:
                     if body['callback_query'].get('from').get('first_name') is not None:
