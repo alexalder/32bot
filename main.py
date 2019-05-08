@@ -271,7 +271,7 @@ def webhook_handler():
 
 # [START custom_class_def]
 class Order(object):
-    def __init__(self, post_id, ordered = false, seats = [], primo1 = [], primo2 = [], primo3 = [], riso = [], secondo1 = [], secondo2 = [], contorno1 = [], contorno2 = [], contorno3 = [], contorno4 = []):
+    def __init__(self, post_id, ordered = False, seats = [], primo1 = [], primo2 = [], primo3 = [], riso = [], secondo1 = [], secondo2 = [], contorno1 = [], contorno2 = [], contorno3 = [], contorno4 = []):
         self.primo1 = primo1
         self.primo2 = primo2
         self.primo3 = primo3
