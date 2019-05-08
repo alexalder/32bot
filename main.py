@@ -158,10 +158,15 @@ def webhook_handler():
                     if photos is not None:
                         photo_id = photos[-1].get('file_id')
                         if photo_id is not None:
-                            reply_markup = {'inline_keyboard': [[{'text': 'Primo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'primo1'}, {'text': '2', 'callback_data': 'primo2'},{'text': '3', 'callback_data': 'primo3'}],
-                                                                [{'text': 'Riso', 'callback_data': 'riso'}],
-                                                                [{'text': 'Secondo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'secondo1'}, {'text': '2', 'callback_data': 'secondo2'}],
-                                                                [{'text': 'Contorno', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'contorno1'},{'text': '2', 'callback_data': 'contorno2'},{'text': '3', 'callback_data': 'contorno3'},{'text': '4', 'callback_data': 'contorno4'}]]}
+                            reply_markup = {
+                              'inline_keyboard': [
+                                [{'text': 'Primo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'primo1'}, {'text': '2', 'callback_data': 'primo2'},{'text': '3', 'callback_data': 'primo3'}],
+                                [{'text': 'Riso', 'callback_data': 'riso'}],
+                                [{'text': 'Secondo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'secondo1'}, {'text': '2', 'callback_data': 'secondo2'}],
+                                [{'text': 'Contorno', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'contorno1'},{'text': '2', 'callback_data': 'contorno2'},{'text': '3', 'callback_data': 'contorno3'},{'text': '4', 'callback_data': 'contorno4'}],
+                                [{'text': 'Ordinato', 'callback_data': 'ordered'}]
+                              ]
+                            }
                             reply_markup = json.dumps(reply_markup)
                             post = sendphoto("Menù pranzo", photo_id, chat_id, keyboard=reply_markup)
                             post_json = post.decode('utf8')
@@ -180,18 +185,22 @@ def webhook_handler():
                 doc = doc_ref.get()
                 order = Order.from_dict(doc.to_dict())
 
-                if body['callback_query'].get('from').get('first_name') is not None:
-                    username = body['callback_query'].get('from').get('first_name')
-                elif body['callback_query'].get('from').get('username') is not None:
-                    username = body['callback_query'].get('from').get('username')
-                else:
-                    username = body['callback_query'].get('from').get('id')
+                if data == 'ordered':
+                    doc_ref.update({'ordered': true})
 
-                if username in getattr(order, data):
-                    doc_ref.update({data: ArrayRemove([username])})
                 else:
-                    doc_ref.update({data: ArrayUnion([username])})
-                doc_ref.update({'seats': ArrayUnion([username])})
+                    if body['callback_query'].get('from').get('first_name') is not None:
+                        username = body['callback_query'].get('from').get('first_name')
+                    elif body['callback_query'].get('from').get('username') is not None:
+                        username = body['callback_query'].get('from').get('username')
+                    else:
+                        username = body['callback_query'].get('from').get('id')
+
+                    if username in getattr(order, data):
+                        doc_ref.update({data: ArrayRemove([username])})
+                    else:
+                        doc_ref.update({data: ArrayUnion([username])})
+                    doc_ref.update({'seats': ArrayUnion([username])})
 
                 doc = doc_ref.get()
                 order = Order.from_dict(doc.to_dict())
@@ -262,7 +271,7 @@ def webhook_handler():
 
 # [START custom_class_def]
 class Order(object):
-    def __init__(self, post_id, seats = [], primo1 = [], primo2 = [], primo3 = [], riso = [], secondo1 = [], secondo2 = [], contorno1 = [], contorno2 = [], contorno3 = [], contorno4 = []):
+    def __init__(self, post_id, ordered = false, seats = [], primo1 = [], primo2 = [], primo3 = [], riso = [], secondo1 = [], secondo2 = [], contorno1 = [], contorno2 = [], contorno3 = [], contorno4 = []):
         self.primo1 = primo1
         self.primo2 = primo2
         self.primo3 = primo3
@@ -274,12 +283,13 @@ class Order(object):
         self.contorno3 = contorno3
         self.contorno4 = contorno4
         self.post_id = post_id
+        self.ordered = ordered
         self.seats = seats
 
     @staticmethod
     def from_dict(source):
         # [START_EXCLUDE]
-        order = Order(source[u'post_id'], source[u'seats'], source[u'primo1'], source[u'primo2'], source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'], source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
+        order = Order(source[u'post_id'], source[u'ordered'], source[u'seats'], source[u'primo1'], source[u'primo2'], source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'], source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
 
         return order
         # [END_EXCLUDE]
@@ -298,6 +308,7 @@ class Order(object):
             u'contorno3': self.contorno3,
             u'contorno4': self.contorno4,
             u'post_id': self.post_id,
+            u'ordered': self.ordered,
             u'seats': self.seats,
         }
 
@@ -306,9 +317,10 @@ class Order(object):
 
     def __repr__(self):
         return(
-            'Ordine:\n Primo 1: ({}) {}\n Primo 2: ({}) {}\n Primo 3: ({}) {}\n Riso: ({}) {}\n Secondo 1: ({}) {}\n Secondo 2: ({}) {}\n Contorno 1: ({}) {}\n Contorno 2: ({}) {}\n Contorno 3: ({}) {}\n Contorno 4: ({}) {}\n Persone a pranzo: {} {}'
+            'Ordine:\n Primo 1: ({}) {}\n Primo 2: ({}) {}\n Primo 3: ({}) {}\n Riso: ({}) {}\n Secondo 1: ({}) {}\n Secondo 2: ({}) {}\n Contorno 1: ({}) {}\n Contorno 2: ({}) {}\n Contorno 3: ({}) {}\n Contorno 4: ({}) {}\n Persone a pranzo: {} {}\n {}'
             .format(len(self.primo1), self.primo1, len(self.primo2), self.primo2, len(self.primo3), self.primo3, len(self.riso), self.riso, 
-                    len(self.secondo1), self.secondo1, len(self.secondo2), self.secondo2, len(self.contorno1), self.contorno1, len(self.contorno2), self.contorno2, len(self.contorno3), self.contorno3, len(self.contorno4), self.contorno4, len(self.seats), self.seats)
+                    len(self.secondo1), self.secondo1, len(self.secondo2), self.secondo2, len(self.contorno1), self.contorno1, len(self.contorno2), self.contorno2, len(self.contorno3), self.contorno3, len(self.contorno4), self.contorno4, len(self.seats), self.seats, 
+                    "ORDINATO ✅" if self.ordered else "NON ANCORA ORDINATO")
             .replace("'", ""))
 
 # [END custom_class_def]
