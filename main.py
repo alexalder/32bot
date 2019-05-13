@@ -157,6 +157,9 @@ def webhook_handler():
     logging.info('Request body:')
     logging.info(body)
 
+    global labels_chat_id
+    global labels
+
     if 'callback_query' in body:
         #Callback received
         try:
@@ -278,7 +281,7 @@ def webhook_handler():
 
     if text.startswith('/labels'):
         labels_chat_id = chat_id
-        return send("Manda la lista delle labels (9 linee)", chat_id)
+        return send("Manda la lista delle label (9 linee)", chat_id)
 
     elif text.startswith('/conto'):
         return send(secrets.bill_address, chat_id)
@@ -287,17 +290,18 @@ def webhook_handler():
         answers = ['Welo', 'Bopo']
         return send(random.choice(answers), chat_id)
 
-    elif labels_chat_id == chat_id:
+    elif labels_chat_id is not None and labels_chat_id == chat_id:
         lines = text.splitlines()
         if len(lines) == 9:
             doc_ref = db.collection(u'data').document(u'two')
             doc = doc_ref.get()
             dic = doc.to_dict()
-            keys = defaultLabels.keys()
+            keys = list(defaultLabels.keys())
             for i in range(9):
-                dic[keys[i]] = lines[i].trim()
+                dic[keys[i]] = lines[i].strip()
             db.collection(u'data').document(u'two').set(dic)
             labels = None
+            return send("Label aggiornate", chat_id)
 
     return json.dumps(body)
 
@@ -349,22 +353,23 @@ class Order(object):
         # [END_EXCLUDE]
 
     def __repr__(self):
-        if !labels:
+        global labels
+        if not labels:
             doc_ref = db.collection(u'data').document(u'two')
-		    doc = doc_ref.get()
-		    labels = doc.to_dict()
+            doc = doc_ref.get()
+            labels = doc.to_dict()
         return(
             'Ordine:\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n Persone a pranzo: {} {}\n {}'
-            labels.primo1, .format(len(self.primo1), self.primo1, 
-			labels.primo2, len(self.primo2), self.primo2, 
-			labels.primo3, len(self.primo3), self.primo3, 
-			labels.riso, len(self.riso), self.riso, 
-            labels.secondo1, len(self.secondo1), self.secondo1, 
-			labels.secondo2, len(self.secondo2), self.secondo2, 
-			labels.contorno1, len(self.contorno1), self.contorno1, 
-			labels.contorno2, len(self.contorno2), self.contorno2, 
-			labels.contorno3, len(self.contorno3), self.contorno3, 
-			labels.contorno4, len(self.contorno4), self.contorno4, 
+            .format(labels['primo1'], len(self.primo1), self.primo1, 
+			labels['primo2'], len(self.primo2), self.primo2, 
+			labels['primo3'], len(self.primo3), self.primo3, 
+			labels['riso'], len(self.riso), self.riso, 
+            labels['secondo1'], len(self.secondo1), self.secondo1, 
+			labels['secondo2'], len(self.secondo2), self.secondo2, 
+			labels['contorno1'], len(self.contorno1), self.contorno1, 
+			labels['contorno2'], len(self.contorno2), self.contorno2, 
+			labels['contorno3'], len(self.contorno3), self.contorno3, 
+			labels['contorno4'], len(self.contorno4), self.contorno4, 
             len(self.seats), self.seats, 
             "ORDINATO ✅" if self.ordered else "NON ANCORA ORDINATO")
             .replace("'", ""))
