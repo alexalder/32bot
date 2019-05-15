@@ -380,3 +380,4 @@ class Order(object):
 def init_database(post_id):
     db.collection(u'data').document(u'one').set(Order(post_id).to_dict())
     db.collection(u'data').document(u'two').set(Order.default_labels)
+    labels = None
