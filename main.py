@@ -20,7 +20,7 @@ import secrets
 # Configuration
 app = Flask(__name__)
 
-# Project ID is determined by the GCLOUD_PROJECT environment variable
+# Database
 db = firestore.Client()
 
 BASE_URL = 'https://api.telegram.org/bot' + secrets.telegram_token + '/'
@@ -28,22 +28,10 @@ BASE_URL = 'https://api.telegram.org/bot' + secrets.telegram_token + '/'
 # Logging
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-# labels chat id
+# Lables handling and caching
 labels_chat_id = None
 labels = None
 
-defaultLabels = {
-	u'primo1': u'Primo 1',
-	u'primo2': u'Primo 2',
-	u'primo3': u'Primo 3',
-	u'secondo1': u'Secondo 1',
-	u'secondo2': u'Secondo 2',
-	u'contorno1': u'Contorno 1',
-	u'contorno2': u'Contorno 2',
-	u'contorno3': u'Contorno 3',
-	u'contorno4': u'Contorno 4',
-	u'riso': u'Riso',
-}
 
 # Telegram webhook handling
 @app.route('/me')
@@ -81,7 +69,7 @@ def send(msg, chat_id, reply=None, keyboard=json.dumps({'inline_keyboard': [[]]}
     return resp
 
 
-def sendphoto(msg, file_id, chat_id, reply=None, keyboard=json.dumps({'inline_keyboard': [[]]})):
+def send_photo(msg, file_id, chat_id, reply=None, keyboard=json.dumps({'inline_keyboard': [[]]})):
     try:
         resp = urllib.request.urlopen(BASE_URL + 'sendPhoto', urllib.parse.urlencode({
             'chat_id': str(chat_id),
@@ -98,7 +86,7 @@ def sendphoto(msg, file_id, chat_id, reply=None, keyboard=json.dumps({'inline_ke
         return resp
 
 
-def editmessage(chat_id, message_id, text):
+def edit_message(chat_id, message_id, text):
     try:
         resp = urllib.request.urlopen(BASE_URL + 'editMessageText', urllib.parse.urlencode({
                 'chat_id': str(chat_id),
@@ -113,7 +101,7 @@ def editmessage(chat_id, message_id, text):
     return resp
 
 
-def deletemessage(chat_id, message_id):
+def delete_message(chat_id, message_id):
     try:
         resp = urllib.request.urlopen(BASE_URL + 'deleteMessage', urllib.parse.urlencode({
                 'chat_id': str(chat_id),
@@ -161,7 +149,7 @@ def webhook_handler():
     global labels
 
     if 'callback_query' in body:
-        #Callback received
+        # Callback received
         try:
             query_id = body['callback_query'].get('id')
             data = body['callback_query'].get('data')
@@ -180,24 +168,24 @@ def webhook_handler():
                         if photo_id is not None:
                             reply_markup = {
                               'inline_keyboard': [
-                                [{'text': 'Primo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'primo1'}, {'text': '2', 'callback_data': 'primo2'},{'text': '3', 'callback_data': 'primo3'}],
+                                [{'text': 'Primo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'primo1'}, {'text': '2', 'callback_data': 'primo2'}, {'text': '3', 'callback_data': 'primo3'}],
                                 [{'text': 'Riso', 'callback_data': 'riso'}],
                                 [{'text': 'Secondo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'secondo1'}, {'text': '2', 'callback_data': 'secondo2'}],
-                                [{'text': 'Contorno', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'contorno1'},{'text': '2', 'callback_data': 'contorno2'},{'text': '3', 'callback_data': 'contorno3'},{'text': '4', 'callback_data': 'contorno4'}],
+                                [{'text': 'Contorno', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'contorno1'}, {'text': '2', 'callback_data': 'contorno2'}, {'text': '3', 'callback_data': 'contorno3'}, {'text': '4', 'callback_data': 'contorno4'}],
                                 [{'text': 'Ordinato', 'callback_data': 'ordered'}]
                               ]
                             }
                             reply_markup = json.dumps(reply_markup)
-                            post = sendphoto("Menù pranzo", photo_id, chat_id, keyboard=reply_markup)
+                            post = send_photo("Menù pranzo", photo_id, chat_id, keyboard=reply_markup)
                             post_json = post.decode('utf8')
                             post_id = json.loads(post_json)['result'].get('message_id')
-                            ordinazioni = send("Ordinazioni:", chat_id)
-                            ordinazioni_json = ordinazioni.decode('utf8')
-                            ordinazioni_id = json.loads(ordinazioni_json)['result'].get('message_id')
-                            init_database(ordinazioni_id)
+                            orders = send("Ordinazioni:", chat_id)
+                            orders_json = orders.decode('utf8')
+                            orders_id = json.loads(orders_json)['result'].get('message_id')
+                            init_database(orders_id)
                             pin(post_id, chat_id)
-                            deletemessage(chat_id, inline_message_id)
-                            deletemessage (chat_id, reply_id)
+                            delete_message(chat_id, inline_message_id)
+                            delete_message(chat_id, reply_id)
             elif data == 'none':
                 pass
             else:
@@ -224,7 +212,7 @@ def webhook_handler():
 
                 doc = doc_ref.get()
                 order = Order.from_dict(doc.to_dict())
-                editmessage(chat_id, order.post_id, str(order))
+                edit_message(chat_id, order.post_id, str(order))
 
             return answer_callback(query_id)
 
@@ -244,6 +232,7 @@ def webhook_handler():
     fr_id = fr.get('id')
     chat = message['chat']
     chat_id = chat['id']
+    is_private_chat = (fr_id == chat_id)
     reply_message = None
     reply_text = None
     fr = message.get('from')
@@ -266,7 +255,7 @@ def webhook_handler():
                         reply_markup = {'inline_keyboard': [[{'text': 'Yes', 'callback_data': 'yes'}]]}
                         reply_markup = json.dumps(reply_markup)
                         return send("Menù pranzo?", chat_id, reply=message_id, keyboard=reply_markup)
-        if (caption is not None and caption == 'testphoto') and (fr_id == secrets.alexalder_id or fr_id == secrets.alessandro_id):
+        if (caption and caption == 'testphoto') and (fr_id == secrets.alexalder_id or fr_id == secrets.alessandro_id):
             photo_id = photos[-1].get('file_id')
             if photo_id is not None:
                 reply_markup = {'inline_keyboard': [[{'text': 'Yes', 'callback_data': 'yes'}]]}
@@ -281,7 +270,7 @@ def webhook_handler():
 
     if text.startswith('/labels'):
         labels_chat_id = chat_id
-        return send("Manda la lista delle label (9 linee)", chat_id)
+        return send("Manda la lista dei piatti, separati andando a capo (9 linee)", chat_id)
 
     elif text.startswith('/conto'):
         return send(secrets.bill_address, chat_id)
@@ -296,19 +285,34 @@ def webhook_handler():
             doc_ref = db.collection(u'data').document(u'two')
             doc = doc_ref.get()
             dic = doc.to_dict()
-            keys = list(defaultLabels.keys())
+            keys = list(Order.default_labels.keys())
             for i in range(9):
                 dic[keys[i]] = lines[i].strip()
             db.collection(u'data').document(u'two').set(dic)
             labels = None
             return send("Label aggiornate", chat_id)
+        elif is_private_chat:
+            return send("Errore nella lettura, il messaggio deve avere solo 9 righe con i 9 nomi dei piatti", chat_id)
 
     return json.dumps(body)
 
 
-# [START custom_class_def]
 class Order(object):
-    def __init__(self, post_id, ordered = False, seats = [], primo1 = [], primo2 = [], primo3 = [], riso = [], secondo1 = [], secondo2 = [], contorno1 = [], contorno2 = [], contorno3 = [], contorno4 = []):
+    default_labels = {
+        u'primo1': u'Primo 1',
+        u'primo2': u'Primo 2',
+        u'primo3': u'Primo 3',
+        u'secondo1': u'Secondo 1',
+        u'secondo2': u'Secondo 2',
+        u'contorno1': u'Contorno 1',
+        u'contorno2': u'Contorno 2',
+        u'contorno3': u'Contorno 3',
+        u'contorno4': u'Contorno 4',
+        u'riso': u'Riso',
+    }
+
+    def __init__(self, post_id, ordered=False, seats=[], primo1=[], primo2=[], primo3=[], riso=[], secondo1=[],
+                 secondo2=[], contorno1=[], contorno2=[], contorno3=[], contorno4=[]):
         self.primo1 = primo1
         self.primo2 = primo2
         self.primo3 = primo3
@@ -325,14 +329,13 @@ class Order(object):
 
     @staticmethod
     def from_dict(source):
-        # [START_EXCLUDE]
-        order = Order(source[u'post_id'], source[u'ordered'], source[u'seats'], source[u'primo1'], source[u'primo2'], source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'], source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
+        order = Order(source[u'post_id'], source[u'ordered'], source[u'seats'], source[u'primo1'], source[u'primo2'],
+                      source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'],
+                      source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
 
         return order
-        # [END_EXCLUDE]
 
     def to_dict(self):
-        # [START_EXCLUDE]
         dest = {
             u'primo1': self.primo1,
             u'primo2': self.primo2,
@@ -350,7 +353,6 @@ class Order(object):
         }
 
         return dest
-        # [END_EXCLUDE]
 
     def __repr__(self):
         global labels
@@ -361,34 +363,20 @@ class Order(object):
         return(
             'Ordine:\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n Persone a pranzo: {} {}\n {}'
             .format(labels['primo1'], len(self.primo1), self.primo1, 
-			labels['primo2'], len(self.primo2), self.primo2, 
-			labels['primo3'], len(self.primo3), self.primo3, 
-			labels['riso'], len(self.riso), self.riso, 
-            labels['secondo1'], len(self.secondo1), self.secondo1, 
-			labels['secondo2'], len(self.secondo2), self.secondo2, 
-			labels['contorno1'], len(self.contorno1), self.contorno1, 
-			labels['contorno2'], len(self.contorno2), self.contorno2, 
-			labels['contorno3'], len(self.contorno3), self.contorno3, 
-			labels['contorno4'], len(self.contorno4), self.contorno4, 
-            len(self.seats), self.seats, 
-            "ORDINATO ✅" if self.ordered else "NON ANCORA ORDINATO")
+                    labels['primo2'], len(self.primo2), self.primo2,
+                    labels['primo3'], len(self.primo3), self.primo3,
+                    labels['riso'], len(self.riso), self.riso,
+                    labels['secondo1'], len(self.secondo1), self.secondo1,
+                    labels['secondo2'], len(self.secondo2), self.secondo2,
+                    labels['contorno1'], len(self.contorno1), self.contorno1,
+                    labels['contorno2'], len(self.contorno2), self.contorno2,
+                    labels['contorno3'], len(self.contorno3), self.contorno3,
+                    labels['contorno4'], len(self.contorno4), self.contorno4,
+                    len(self.seats), self.seats,
+                    "ORDINATO ✅" if self.ordered else "NON ANCORA ORDINATO")
             .replace("'", ""))
-
-# [END custom_class_def]
 
 
 def init_database(post_id):
-    defaultLabels = {
-        u'primo1': u'Primo 1',
-        u'primo2': u'Primo 2',
-        u'primo3': u'Primo 3',
-        u'secondo1': u'Secondo 1',
-        u'secondo2': u'Secondo 2',
-        u'contorno1': u'Contorno 1',
-        u'contorno2': u'Contorno 2',
-        u'contorno3': u'Contorno 3',
-        u'contorno4': u'Contorno 4',
-        u'riso': u'Riso',
-    }
     db.collection(u'data').document(u'one').set(Order(post_id).to_dict())
-    db.collection(u'data').document(u'two').set(defaultLabels)
+    db.collection(u'data').document(u'two').set(Order.default_labels)
