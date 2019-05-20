@@ -172,7 +172,7 @@ def webhook_handler():
                                 [{'text': 'Riso', 'callback_data': 'riso'}],
                                 [{'text': 'Secondo', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'secondo1'}, {'text': '2', 'callback_data': 'secondo2'}],
                                 [{'text': 'Contorno', 'callback_data': 'none'}, {'text': '1', 'callback_data': 'contorno1'}, {'text': '2', 'callback_data': 'contorno2'}, {'text': '3', 'callback_data': 'contorno3'}, {'text': '4', 'callback_data': 'contorno4'}],
-                                [{'text': 'Ordinato', 'callback_data': 'ordered'}]
+                                [{'text': 'Non vengo', 'callback_data': 'noshow'}, {'text': 'Ordinato', 'callback_data': 'ordered'}]
                               ]
                             }
                             reply_markup = json.dumps(reply_markup)
@@ -203,12 +203,22 @@ def webhook_handler():
                 if data == 'ordered':
                     doc_ref.update({'ordered': username})
 
+                elif data == 'noshow':
+                    if username in getattr(order, data):
+                        doc_ref.update({data: ArrayRemove([username])})
+                    else:
+                        doc_ref.update({'seats': ArrayRemove([username])})
+                        for key in list(Order.default_labels.keys()):
+                            doc_ref.update({key: ArrayRemove([username])})
+                        doc_ref.update({data: ArrayUnion([username])})
+
                 else:
                     if username in getattr(order, data):
                         doc_ref.update({data: ArrayRemove([username])})
                     else:
                         doc_ref.update({data: ArrayUnion([username])})
-                    doc_ref.update({'seats': ArrayUnion([username])})
+                        doc_ref.update({'seats': ArrayUnion([username])})
+                        doc_ref.update({'noshow': ArrayRemove([username])})
 
                 doc = doc_ref.get()
                 order = Order.from_dict(doc.to_dict())
@@ -311,7 +321,7 @@ class Order(object):
         u'riso': u'Riso',
     }
 
-    def __init__(self, post_id, ordered=None, seats=[], primo1=[], primo2=[], primo3=[], riso=[], secondo1=[],
+    def __init__(self, post_id, noshow=[], ordered=None, seats=[], primo1=[], primo2=[], primo3=[], riso=[], secondo1=[],
                  secondo2=[], contorno1=[], contorno2=[], contorno3=[], contorno4=[]):
         self.primo1 = primo1
         self.primo2 = primo2
@@ -324,12 +334,13 @@ class Order(object):
         self.contorno3 = contorno3
         self.contorno4 = contorno4
         self.post_id = post_id
+        self.noshow = noshow
         self.ordered = ordered
         self.seats = seats
 
     @staticmethod
     def from_dict(source):
-        order = Order(source[u'post_id'], source[u'ordered'], source[u'seats'], source[u'primo1'], source[u'primo2'],
+        order = Order(source[u'post_id'], source[u'noshow'], source[u'ordered'], source[u'seats'], source[u'primo1'], source[u'primo2'],
                       source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'],
                       source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
 
@@ -348,6 +359,7 @@ class Order(object):
             u'contorno3': self.contorno3,
             u'contorno4': self.contorno4,
             u'post_id': self.post_id,
+            u'noshow': self.noshow,
             u'ordered': self.ordered,
             u'seats': self.seats,
         }
@@ -361,7 +373,7 @@ class Order(object):
             doc = doc_ref.get()
             labels = doc.to_dict()
         return(
-            'Ordine:\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\nPersone a pranzo: {} {}\n{}'
+            'Ordine:\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\nPersone a pranzo: {} {}\nNon vengono: {}\n{}'
             .format(labels['primo1'], len(self.primo1), self.primo1, 
                     labels['primo2'], len(self.primo2), self.primo2,
                     labels['primo3'], len(self.primo3), self.primo3,
@@ -373,6 +385,7 @@ class Order(object):
                     labels['contorno3'], len(self.contorno3), self.contorno3,
                     labels['contorno4'], len(self.contorno4), self.contorno4,
                     len(self.seats), self.seats,
+                    self.noshow,
                     ("ORDINATO ✅" + " (" + self.ordered + ")") if self.ordered else "NON ANCORA ORDINATO")
             .replace("'", ""))
 
