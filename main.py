@@ -58,7 +58,7 @@ def send(msg, chat_id, reply=None, keyboard=json.dumps({'inline_keyboard': [[]]}
         resp = urllib.request.urlopen(BASE_URL + 'sendMessage', urllib.parse.urlencode({
                 'chat_id': str(chat_id),
                 'text': msg.encode('utf-8'),
-                'parse_mode': 'HTML',
+                'parse_mode': 'Markdown',
                 'disable_web_page_preview': 'true',
                 'reply_to_message_id': reply,
                 'reply_markup': keyboard,
@@ -92,7 +92,7 @@ def edit_message(chat_id, message_id, text):
                 'chat_id': str(chat_id),
                 'message_id': int(message_id),
                 'text': text.encode('utf-8'),
-                'parse_mode': 'HTML',
+                'parse_mode': 'Markdown',
                 'disable_web_page_preview': 'true',
             }).encode("utf-8")).read()
         logging.info(resp)
@@ -120,6 +120,7 @@ def edit_caption(chat_id, message_id, caption, keyboard=json.dumps({'inline_keyb
                 'chat_id': str(chat_id),
                 'message_id': int(message_id),
                 'caption': caption,
+                'parse_mode': 'Markdown',
                 'reply_markup': keyboard,
             }).encode("utf-8")).read()
         logging.info(resp)
@@ -411,6 +412,13 @@ class Order(object):
         return dest
 
     def __repr__(self):
+
+        def getlabel(name):
+            if len(getattr(self, name)) > 0:
+                return "*" + labels[name] + "*"
+            else:
+                return labels[name]
+
         global labels
         if not labels:
             doc_ref = db.collection(u'data').document(u'two')
@@ -418,16 +426,16 @@ class Order(object):
             labels = doc.to_dict()
         return(
             'Ordine:\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\n {}: ({}) {}\nPersone a pranzo: {} {}\nNon vengono: {}\n{}'
-            .format(labels['primo1'], len(self.primo1), self.primo1, 
-                    labels['primo2'], len(self.primo2), self.primo2,
-                    labels['primo3'], len(self.primo3), self.primo3,
-                    labels['riso'], len(self.riso), self.riso,
-                    labels['secondo1'], len(self.secondo1), self.secondo1,
-                    labels['secondo2'], len(self.secondo2), self.secondo2,
-                    labels['contorno1'], len(self.contorno1), self.contorno1,
-                    labels['contorno2'], len(self.contorno2), self.contorno2,
-                    labels['contorno3'], len(self.contorno3), self.contorno3,
-                    labels['contorno4'], len(self.contorno4), self.contorno4,
+            .format(getlabel('primo1'), len(self.primo1), self.primo1, 
+                    getlabel('primo2'), len(self.primo2), self.primo2,
+                    getlabel('primo3'), len(self.primo3), self.primo3,
+                    getlabel('riso'), len(self.riso), self.riso,
+                    getlabel('secondo1'), len(self.secondo1), self.secondo1,
+                    getlabel('secondo2'), len(self.secondo2), self.secondo2,
+                    getlabel('contorno1'), len(self.contorno1), self.contorno1,
+                    getlabel('contorno2'), len(self.contorno2), self.contorno2,
+                    getlabel('contorno3'), len(self.contorno3), self.contorno3,
+                    getlabel('contorno4'), len(self.contorno4), self.contorno4,
                     len(self.seats), self.seats,
                     self.noshow,
                     ("ORDINATO ✅" + " (" + self.ordered + ")") if self.ordered else "NON ANCORA ORDINATO")
