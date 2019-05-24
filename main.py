@@ -435,6 +435,7 @@ class Order(object):
 
 
 def init_database(post_id, chat_id):
+    global labels
     db.collection(u'data').document(u'one').set(Order(post_id, chat_id).to_dict())
     db.collection(u'data').document(u'two').set(Order.default_labels)
     labels = None
