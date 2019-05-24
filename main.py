@@ -101,6 +101,33 @@ def edit_message(chat_id, message_id, text):
     return resp
 
 
+def edit_markup(chat_id, message_id, keyboard):
+    try:
+        resp = urllib.request.urlopen(BASE_URL + 'editMessageReplyMarkup', urllib.parse.urlencode({
+                'chat_id': str(chat_id),
+                'message_id': int(message_id),
+                'reply_markup': keyboard,
+            }).encode("utf-8")).read()
+        logging.info(resp)
+    except Exception:
+        resp = make_response('Error in edit')
+    return resp
+
+
+def edit_caption(chat_id, message_id, caption, keyboard=json.dumps({'inline_keyboard': [[]]})):
+    try:
+        resp = urllib.request.urlopen(BASE_URL + 'editMessageCaption', urllib.parse.urlencode({
+                'chat_id': str(chat_id),
+                'message_id': int(message_id),
+                'caption': caption,
+                'reply_markup': keyboard,
+            }).encode("utf-8")).read()
+        logging.info(resp)
+    except Exception:
+        resp = make_response('Error in edit')
+    return resp
+
+
 def delete_message(chat_id, message_id):
     try:
         resp = urllib.request.urlopen(BASE_URL + 'deleteMessage', urllib.parse.urlencode({
@@ -182,7 +209,7 @@ def webhook_handler():
                             orders = send("Ordinazioni:", chat_id)
                             orders_json = orders.decode('utf8')
                             orders_id = json.loads(orders_json)['result'].get('message_id')
-                            init_database(orders_id)
+                            init_database(orders_id, chat_id)
                             pin(post_id, chat_id)
                             delete_message(chat_id, inline_message_id)
                             delete_message(chat_id, reply_id)
@@ -300,6 +327,21 @@ def webhook_handler():
                 dic[keys[i]] = lines[i].strip()
             db.collection(u'data').document(u'two').set(dic)
             labels = None
+            doc_ref = db.collection(u'data').document(u'one')
+            doc = doc_ref.get()
+            order = Order.from_dict(doc.to_dict())
+            edit_message(order.chat_id, order.post_id, str(order))
+            reply_markup = {
+                               'inline_keyboard': [
+                                 [{'text': dic['primo1'], 'callback_data': 'primo1'}], [{'text': dic['primo2'], 'callback_data': 'primo2'}], [{'text': dic['primo3'], 'callback_data': 'primo3'}],
+                                 [{'text': 'Riso', 'callback_data': 'riso'}],
+                                 [{'text': dic['secondo1'], 'callback_data': 'secondo1'}], [{'text': dic['secondo2'], 'callback_data': 'secondo2'}],
+                                 [{'text': dic['contorno1'], 'callback_data': 'contorno1'}], [{'text': dic['contorno2'], 'callback_data': 'contorno2'}], [{'text': dic['contorno3'], 'callback_data': 'contorno3'}], [{'text': dic['contorno4'], 'callback_data': 'contorno4'}],
+                                 [{'text': 'Non vengo', 'callback_data': 'noshow'}, {'text': 'Ordinato', 'callback_data': 'ordered'}]
+                               ]
+                            }
+            reply_markup = json.dumps(reply_markup)
+            edit_caption(order.chat_id, order.post_id - 1, "Menù pranzo", keyboard=reply_markup)
             return send("Label aggiornate", chat_id)
         elif is_private_chat:
             return send("Errore nella lettura, il messaggio deve avere solo 9 righe con i 9 nomi dei piatti", chat_id)
@@ -321,7 +363,7 @@ class Order(object):
         u'riso': u'Riso',
     }
 
-    def __init__(self, post_id, noshow=[], ordered=None, seats=[], primo1=[], primo2=[], primo3=[], riso=[], secondo1=[],
+    def __init__(self, post_id, chat_id, noshow=[], ordered=None, seats=[], primo1=[], primo2=[], primo3=[], riso=[], secondo1=[],
                  secondo2=[], contorno1=[], contorno2=[], contorno3=[], contorno4=[]):
         self.primo1 = primo1
         self.primo2 = primo2
@@ -334,13 +376,14 @@ class Order(object):
         self.contorno3 = contorno3
         self.contorno4 = contorno4
         self.post_id = post_id
+        self.chat_id = chat_id
         self.noshow = noshow
         self.ordered = ordered
         self.seats = seats
 
     @staticmethod
     def from_dict(source):
-        order = Order(source[u'post_id'], source[u'noshow'], source[u'ordered'], source[u'seats'], source[u'primo1'], source[u'primo2'],
+        order = Order(source[u'post_id'], source[u'chat_id'], source[u'noshow'], source[u'ordered'], source[u'seats'], source[u'primo1'], source[u'primo2'],
                       source[u'primo3'], source[u'riso'], source[u'secondo1'], source[u'secondo2'],
                       source[u'contorno1'], source[u'contorno2'], source[u'contorno3'], source[u'contorno4'])
 
@@ -359,6 +402,7 @@ class Order(object):
             u'contorno3': self.contorno3,
             u'contorno4': self.contorno4,
             u'post_id': self.post_id,
+            u'chat_id': self.chat_id,
             u'noshow': self.noshow,
             u'ordered': self.ordered,
             u'seats': self.seats,
@@ -390,7 +434,7 @@ class Order(object):
             .replace("'", ""))
 
 
-def init_database(post_id):
-    db.collection(u'data').document(u'one').set(Order(post_id).to_dict())
+def init_database(post_id, chat_id):
+    db.collection(u'data').document(u'one').set(Order(post_id, chat_id).to_dict())
     db.collection(u'data').document(u'two').set(Order.default_labels)
     labels = None
