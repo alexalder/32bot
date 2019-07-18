@@ -317,8 +317,12 @@ def webhook_handler():
         answers = ['Welo', 'Bopo']
         return send(random.choice(answers), chat_id)
 
-    elif labels_chat_id is not None and labels_chat_id == chat_id:
-        lines = text.splitlines()
+    elif labels_chat_id == chat_id:
+        lines = []
+        if ';' in text:
+            lines = [x.strip() for x in text.split(';')]
+        else:
+            lines = text.splitlines()
         if len(lines) == 9:
             doc_ref = db.collection(u'data').document(u'two')
             doc = doc_ref.get()
