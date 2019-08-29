@@ -289,7 +289,7 @@ def webhook_handler():
         caption = message.get('caption')
         photos = message.get('photo')
         if 11 <= message_date.hour <= 13:
-            if fr_id == secrets.massimo_id or fr_id == secrets.roberta_id:
+            if fr_id in secrets.sender_ids:
                 if photos is not None:
                     photo_id = photos[-1].get('file_id')
                     if photo_id is not None:
@@ -333,6 +333,7 @@ def webhook_handler():
             keys = list(Order.default_labels.keys())
             for i in range(9):
                 dic[keys[i]] = lines[i].strip()
+            dic[keys[10]] = datetime.today().day
             db.collection(u'data').document(u'two').set(dic)
             labels = None
             doc_ref = db.collection(u'data').document(u'one')
@@ -369,6 +370,7 @@ class Order(object):
         u'contorno3': u'Contorno 3',
         u'contorno4': u'Contorno 4',
         u'riso': u'Riso',
+        u'giorno': None
     }
 
     def __init__(self, post_id, chat_id, noshow=[], ordered=None, seats=[], primo1=[], primo2=[], primo3=[], riso=[], secondo1=[],
@@ -433,7 +435,7 @@ class Order(object):
                 return labels[name]
 
         global labels
-        if not labels:
+        if not labels or labels[u'giorno'] != datetime.today().day:
             doc_ref = db.collection(u'data').document(u'two')
             doc = doc_ref.get()
             labels = doc.to_dict()
