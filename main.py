@@ -188,6 +188,9 @@ def webhook_handler():
                 reply_id = body['callback_query'].get('message').get('reply_to_message').get('message_id')
                 reply_from_id = body['callback_query'].get('message').get('reply_to_message').get('from').get('id')
 
+            if data == 'no':
+                delete_message(chat_id, inline_message_id)
+
             if data == 'yes':
                 if user_id == reply_from_id or user_id == secrets.alessandro_id:
                     photos = body['callback_query'].get('message').get('reply_to_message').get('photo')
@@ -296,7 +299,7 @@ def webhook_handler():
         if (caption and caption == 'testphoto') and (fr_id == secrets.alexalder_id or fr_id == secrets.alessandro_id):
             photo_id = photos[-1].get('file_id')
             if photo_id is not None:
-                reply_markup = {'inline_keyboard': [[{'text': 'Yes', 'callback_data': 'yes'}]]}
+                reply_markup = {'inline_keyboard': [[{'text': 'Yes', 'callback_data': 'yes'}, {'text': 'No', 'callback_data': 'no'}]]}
                 reply_markup = json.dumps(reply_markup)
                 return send("Menù pranzo?", chat_id, reply=message_id, keyboard=reply_markup)
 
