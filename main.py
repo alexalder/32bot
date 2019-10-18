@@ -265,7 +265,11 @@ def webhook_handler():
     try:
         message = body['message']
     except Exception:
-        message = body['edited_message']
+        if body.get('edited_message') is not None:
+            message = body['edited_message']
+        else:
+            return json.dumps(body)
+
     message_id = message.get('message_id')
     text = message.get('text')
     is_forward = message.get('forward_from')
