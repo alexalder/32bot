@@ -1,0 +1,3 @@
+[submodule "pettagram"]
+	path = pettagram
+	url = https://github.com/alexalder/pettagram.git
