@@ -141,7 +141,7 @@ def webhook_handler():
 
                 doc = doc_ref.get()
                 order = Order.from_dict(doc.to_dict())
-                bot.edit_message(chat_id, order.post_id, str(order))
+                bot.edit_message(chat_id, order.post_id, str(order), parse_mode="Markdown")
 
             return bot.answer_callback(query_id)
 
@@ -231,7 +231,7 @@ def webhook_handler():
             doc_ref = db.collection(u'data').document(u'one')
             doc = doc_ref.get()
             order = Order.from_dict(doc.to_dict())
-            bot.edit_message(order.chat_id, order.post_id, str(order))
+            bot.edit_message(order.chat_id, order.post_id, str(order), parse_mode="Markdown")
             reply_markup = {
                                'inline_keyboard': [
                                  [{'text': dic['primo1'], 'callback_data': 'primo1'}], [{'text': dic['primo2'], 'callback_data': 'primo2'}], [{'text': dic['primo3'], 'callback_data': 'primo3'}],
